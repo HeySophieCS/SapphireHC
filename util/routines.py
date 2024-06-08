@@ -430,51 +430,65 @@ class simple_kickoff():
 
 
 class kickoff():
-    def __init__(self):
-        self.diag = False
-        self.far_back = False
-        self.diag_div_time = 0.3
-        self._time = -1.0
-        self._elapsed = 0.0
+    def __init__(self, car_pos_x):
+        self.diag = abs(car_pos_x) > 1300
 
     def run(self, agent):
-        local_target = agent.me.local(agent.ball.location - agent.me.location)
-        div = 1 if agent.team == 1 else -1
-        if agent.me.velocity.magnitude() < 20:
-            self.diag = (True if agent.me.location.y > -3500 else False) if agent.team == 0 else (True if agent.me.location.y < 3500 else False)
-            self.far_back = (True if agent.me.location.y < -4150 else False) if agent.team == 0 else (True if agent.me.location.y > 4150 else False)
+        if not agent.kickoff_flag:
+            agent.intent = None
+        fac = 200 if self.diag or abs(agent.me.location.y) < 2500 else 1000
+        target = agent.ball.location + Vector3(0, fac * side(agent.team), 0)
+        local_target = agent.me.local(target - agent.me.location)
+        defaultPD(agent, local_target)
+        defaultThrottle(agent, 2300)
+        if local_target.magnitude() < 650 and fac == 200:
+            agent.set_intent(flip(agent.me.local(agent.foe_goal.location - agent.me.location)))
+            
+    # def __init__(self):
+    #     self.diag = False
+    #     self.far_back = False
+    #     self.diag_div_time = 0.3
+    #     self._time = -1.0
+    #     self._elapsed = 0.0
 
-        if self._time == -1:
-            self._elapsed = 0
-            self._time = agent.time
-        else:
-            self._elapsed = agent.time - self._time
+    # def run(self, agent):
+    #     local_target = agent.me.local(agent.ball.location - agent.me.location)
+    #     div = 1 if agent.team == 1 else -1
+    #     if agent.me.velocity.magnitude() < 20:
+    #         self.diag = (True if agent.me.location.y > -3500 else False) if agent.team == 0 else (True if agent.me.location.y < 3500 else False)
+    #         self.far_back = (True if agent.me.location.y < -4150 else False) if agent.team == 0 else (True if agent.me.location.y > 4150 else False)
 
-        if self._elapsed <= (0.7 if not self.diag else 0.7 - self.diag_div_time):
-            agent.controller.throttle = 1
-            agent.controller.steer = -0.15 if self.far_back else clamp(to_degrees(get_angle(agent.me.location, agent.ball.location)) / 500, 0, (1 if not self.diag else 0.15)) * ((1 if agent.me.location.x > 0 else -1) if agent.team == 0 else (1 if agent.me.location.x < 0 else -1))
-            agent.controller.boost = True
+    #     if self._time == -1:
+    #         self._elapsed = 0
+    #         self._time = agent.time
+    #     else:
+    #         self._elapsed = agent.time - self._time
+
+    #     if self._elapsed <= (0.7 if not self.diag else 0.7 - self.diag_div_time):
+    #         agent.controller.throttle = 1
+    #         agent.controller.steer = -0.15 if self.far_back else clamp(to_degrees(get_angle(agent.me.location, agent.ball.location)) / 500, 0, (1 if not self.diag else 0.15)) * ((1 if agent.me.location.x > 0 else -1) if agent.team == 0 else (1 if agent.me.location.x < 0 else -1))
+    #         agent.controller.boost = True
         
-        elif self._elapsed <= (0.75 if not self.diag else 0.75 - self.diag_div_time):      
-            agent.controller.boost = True  
-            agent.controller.jump = True
+    #     elif self._elapsed <= (0.75 if not self.diag else 0.75 - self.diag_div_time):      
+    #         agent.controller.boost = True  
+    #         agent.controller.jump = True
         
-        elif self._elapsed <= (0.85 if not self.diag else 0.85 - self.diag_div_time):
-            agent.controller.boost = True
-            agent.controller.jump = False
+    #     elif self._elapsed <= (0.85 if not self.diag else 0.85 - self.diag_div_time):
+    #         agent.controller.boost = True
+    #         agent.controller.jump = False
  
-        elif self._elapsed <= (0.95 if not self.diag else 0.95 - self.diag_div_time): 
-            agent.controller.boost = True
-            agent.controller.pitch = -1
-            agent.controller.roll = (-1 * ((1 if agent.me.location.x > 0 else -1) if agent.team == 0 else (1 if agent.me.location.x < 0 else -1))) if not self.far_back else 1
-            agent.controller.jump = True
+    #     elif self._elapsed <= (0.95 if not self.diag else 0.95 - self.diag_div_time): 
+    #         agent.controller.boost = True
+    #         agent.controller.pitch = -1
+    #         agent.controller.roll = (-1 * ((1 if agent.me.location.x > 0 else -1) if agent.team == 0 else (1 if agent.me.location.x < 0 else -1))) if not self.far_back else 1
+    #         agent.controller.jump = True
 
-        else:
-            agent.controller.boost = True
-            defaultPD(agent, local_target, up=((agent.me.location + Vector3(0, 0, 500)) - agent.me.location), no_roll=True)
-            agent.controller.roll = (-1 if not self.far_back else 1) * ((1 if agent.me.location.x > 0 else -1) if agent.team == 0 else (1 if agent.me.location.x > 0 else -1))
-            if local_target.magnitude() < 650:
-                agent.set_intent(flip(agent.me.local(agent.foe_goal.location - agent.me.location)))
+    #     else:
+    #         agent.controller.boost = True
+    #         defaultPD(agent, local_target, up=((agent.me.location + Vector3(0, 0, 500)) - agent.me.location), no_roll=True)
+    #         agent.controller.roll = (-1 if not self.far_back else 1) * ((1 if agent.me.location.x > 0 else -1) if agent.team == 0 else (1 if agent.me.location.x > 0 else -1))
+    #         if local_target.magnitude() < 650:
+    #             agent.set_intent(flip(agent.me.local(agent.foe_goal.location - agent.me.location)))
 
 
 class recovery():
