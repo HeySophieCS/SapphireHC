@@ -49,7 +49,7 @@ class Bot(CheeseAgent):
                         elif car.location.dist(agent.ball.location) == ball_distance and not (agent.me.location.x * div < 0):
                             go_kickoff = False
                         
-                agent.set_intent(kickoff() if go_kickoff else goto_boost(closest_large_boost))
+                agent.set_intent(kickoff(agent.me.location.x) if go_kickoff else goto_boost(closest_large_boost))
                 return
 
             else:
