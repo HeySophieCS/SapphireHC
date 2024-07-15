@@ -40,7 +40,7 @@ class CheeseAgent(BaseAgent):
         self.kickoff_flag = False
         self.active_sequence: Sequence = None
         self.packet: GameTickPacket = None
-        self.dribbler = DribbleDetection()
+        self._dribbler = DribbleDetection()
 
         self.LT = 0
         self.RLT = 0
@@ -49,6 +49,10 @@ class CheeseAgent(BaseAgent):
         self.DT = 0
         self.CT = 0
         self.FPS = 120
+
+        self.follow_up = False
+        self.kickoff_time = 0
+
 
     def get_ready(self, packet):
         # Preps all of the objects that will be updated during play
@@ -67,26 +71,6 @@ class CheeseAgent(BaseAgent):
                         packet.game_cars[i].team == self.team and i != self.index]
         self.foes = [car_object(i, packet) for i in range(packet.num_cars) if packet.game_cars[i].team != self.team]
         self.cars = [car_object(i, packet) for i in range(packet.num_cars)]
-
-    def TimeManager(self):
-        if not self.LT:
-            self.LT = self.time
-        else:
-            if self.RLT == self.time:
-                return
-
-            if int(self.LT) != int(self.time):
-                if self.FTR or self.kickoff_flag:
-                    self.FTR = False
-                self.ST = self.DT = 0
-
-            Tp = round(max(1, (self.time - self.LT) * self.FPS))
-            self.LT = min(self.time, self.LT + Tp)
-            self.RLT = self.time
-            self.CT += Tp
-            if Tp > 1:
-                self.ST += Tp - 1
-            self.DT += 1
 
     def set_intent(self, routine):
         self.intent = routine
@@ -128,7 +112,6 @@ class CheeseAgent(BaseAgent):
         if packet.num_cars != len(self.friends) + len(self.foes) + 1: self.refresh_player_lists(packet)
         for car in self.friends: car.update(packet)
         for car in self.foes: car.update(packet)
-        for car in self.cars: car.update(packet)
         for pad in self.boosts: pad.update(packet)
         self.ball.update(packet)
         self.me.update(packet)
@@ -145,8 +128,8 @@ class CheeseAgent(BaseAgent):
         self._last_time = self.time
 
     def get_output(self, packet):
-        
         self.packet = packet
+
         # Reset controller
         self.controller.__init__()
         # Get ready, then preprocess
@@ -156,6 +139,7 @@ class CheeseAgent(BaseAgent):
 
         self.TimeManager()
         self.update_deltatime()
+
         self.renderer.begin_rendering()
             
         # Run our strategy code
@@ -168,6 +152,26 @@ class CheeseAgent(BaseAgent):
         # send our updated controller back to rlbot
         return self.controller
     
+    def TimeManager(self):
+        if not self.LT:
+            self.LT = self.time
+        else:
+            if self.RLT == self.time:
+                return
+
+            if int(self.LT) != int(self.time):
+                if self.FTR or self.kickoff_flag:
+                    self.FTR = False
+                self.ST = self.DT = 0
+
+            Tp = round(max(1, (self.time - self.LT) * self.FPS))
+            self.LT = min(self.time, self.LT + Tp)
+            self.RLT = self.time
+            self.CT += Tp
+            if Tp > 1:
+                self.ST += Tp - 1
+            self.DT += 1
+    
     def is_in_front_of_ball(self):
         me_to_goal = (self.me.location - self.foe_goal.location).magnitude()
         ball_to_goal = (self.ball.location -
@@ -178,13 +182,14 @@ class CheeseAgent(BaseAgent):
             return True
         return False
     
-    def get_closest_large_boost(self, goal):
-        available_boosts = [boost for boost in self.boosts if boost.large and boost.active and boost.location.dist(goal.location) > 5000]
+    def get_closest_large_boost(self):
+        available_boosts = [
+            boost for boost in self.boosts if boost.large and boost.active]
         closest_boost = None
         closest_distance = 10000
         for boost in available_boosts:
             distance = (self.me.location - boost.location).magnitude()
-            if distance < closest_distance:
+            if closest_boost is None or distance < closest_distance:
                 closest_boost = boost
                 closest_distance = distance
         return closest_boost
@@ -346,19 +351,23 @@ class DribbleDetection():
         self.prev_car: car_object = None
         self.duration = 0.0
 
-    def get_dribbler(self, agent, step):
+    def GetDribbler(self, agent, step):
         dribbler = agent.cars[0]
         for car in agent.cars:
             if dribbler.location.dist(agent.ball.location) >= car.location.dist(agent.ball.location):
                 dribbler = car
-                
+
         if dribbler is None or dribbler.index != (self.prev_car.index if self.prev_car is not None else -1) or agent.ball.location.z < self.z_req or dribbler.location.dist(agent.ball.location) > self.dist_req:
             self.duration = 0
+            #agent.text2d("RESET", Vector3(49, 220, 0), 2, 2)
 
         self.duration += step
         self.prev_car = dribbler
 
         return dribbler if self.duration >= self.time_req else None
+
+    def Duration(self):
+        return self.duration
 
 
 class Matrix3:
@@ -508,6 +517,9 @@ class Vector3:
 
     def __abs__(self):
         return Vector3(abs(self[0]), abs(self[1]), abs(self[2]))
+    
+    def atan(self):
+        return Vector3(math.atan2(self.y, self.x), math.atan2(self.z, math.sqrt(self.x**2 + self.y**2)), 0)
 
     def magnitude(self):
         # Magnitude() returns the length of the vector
