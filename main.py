@@ -1,7 +1,6 @@
 from util.objects import *
 from util.routines import *
 from util.tools import *
-from util.custom import *
 import random
 
 class Bot(CheeseAgent):
