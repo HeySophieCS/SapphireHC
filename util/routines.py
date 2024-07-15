@@ -439,7 +439,7 @@ class SpeedKickoff():
         self.LAT = None
         self.KS = 0
 
-    def run(self, agent: CheeseAgent):
+    def run(self, agent):
         if self.LAT == None:
             self.LAT = agent.CT
         Delta = agent.CT - self.LAT
