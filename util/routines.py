@@ -1,5 +1,4 @@
 from util.common import *
-from util.custom import *
 import random
 
 # This file holds all of the mechanical tasks, called "routines", that the bot can do
