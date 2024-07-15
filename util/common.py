@@ -195,7 +195,3 @@ def invlerp(a, b, v):
     # For instance, it returns 0 if v == a, and returns 1 if v == b, and returns 0.5 if v is exactly between a and b
     # Works for both numbers and Vector3s
     return (v - a)/(b - a)
-
-def closest_car(cars, target):
-    return min(cars, key=lambda x: x.location.dist(target))
-
